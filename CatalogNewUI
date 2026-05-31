@@ -1,4 +1,4 @@
-﻿local Players = game:GetService("Players")
+local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -67,6 +67,1517 @@ local function fadeIn(frame, onDone)
 			pcall(function() TweenService:Create(c, TweenInfo.new(ANIM), {TextTransparency = 0}):Play() end)
 		elseif c:IsA("ImageLabel") or c:IsA("ImageButton") then
 			pcall(function() TweenService:Create(c, TweenInfo.new(ANIM), {ImageTransparency = 0}):Play() end)
+		end
+	end
+	t:Play()
+	t.Completed:Connect(function() if onDone then onDone() end end)
+end
+
+local function fadeOut(frame, onDone)
+	local t = TweenService:Create(frame, TweenInfo.new(ANIM, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {BackgroundTransparency = 1})
+	for _, c in ipairs(frame:GetDescendants()) do
+		if c:IsA("TextLabel") or c:IsA("TextButton") then
+			pcall(function() TweenService:Create(c, TweenInfo.new(ANIM), {TextTransparency = 1}):Play() end)
+		elseif c:IsA("ImageLabel") or c:IsA("ImageButton") then
+			pcall(function() TweenService:Create(c, TweenInfo.new(ANIM), {ImageTransparency = 1}):Play() end)
+		end
+	end
+	t:Play()
+	t.Completed:Connect(function() frame.Visible = false; if onDone then onDone() end end)
+end
+
+local function makeDraggable(frame, handle)
+	local dragging, dragInput, dragStart, startPos = false, nil, nil, nil
+	local target = handle or frame
+	target.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true; dragStart = input.Position; startPos = frame.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then dragging = false; dragInput = nil end
+			end)
+		end
+	end)
+	target.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local d = input.Position - dragStart
+			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+		end
+	end)
+end
+
+---------------------------------------------------------------------
+-- SCREEN OVERLAY
+---------------------------------------------------------------------
+local giftGui = Instance.new("ScreenGui")
+giftGui.Name = "GiftInterface"
+giftGui.ResetOnSpawn = false
+giftGui.IgnoreGuiInset = true
+giftGui.DisplayOrder = 999
+giftGui.Parent = playerGui
+
+local screenDarken = Instance.new("Frame")
+screenDarken.Size = UDim2.new(1,0,1,0)
+screenDarken.BackgroundColor3 = Color3.new(0,0,0)
+screenDarken.BackgroundTransparency = 1
+screenDarken.ZIndex = 1
+screenDarken.Visible = false
+screenDarken.Parent = giftGui
+
+local function toggleOverlay(show)
+	if show then
+		screenDarken.Visible = true
+		TweenService:Create(screenDarken, TweenInfo.new(0.25), {BackgroundTransparency = 0.45}):Play()
+	else
+		local t = TweenService:Create(screenDarken, TweenInfo.new(0.25), {BackgroundTransparency = 1})
+		t:Play()
+		t.Completed:Connect(function() screenDarken.Visible = false end)
+	end
+end
+
+local function hideMainGameUI()
+	hiddenUIElements = {}; isUIRestoreLocked = true
+	for _, g in ipairs(playerGui:GetChildren()) do
+		if g:IsA("ScreenGui") and g.Name ~= "GiftInterface" then
+			hiddenUIElements[g] = g.Enabled; g.Enabled = false
+		end
+	end
+end
+
+local function restoreMainGameUI()
+	if not isUIRestoreLocked then return end
+	for g, v in pairs(hiddenUIElements) do if g and g.Parent then g.Enabled = v end end
+	hiddenUIElements = {}; isUIRestoreLocked = false
+end
+
+---------------------------------------------------------------------
+-- MAIN SEND ROBUX PANEL
+---------------------------------------------------------------------
+local PANEL_W, PANEL_H = 360, 590
+
+local giftFrame = Instance.new("Frame")
+giftFrame.Name = "GiftFrame"
+giftFrame.Size = UDim2.new(0, PANEL_W, 0, PANEL_H)
+giftFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+giftFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+giftFrame.BackgroundColor3 = Colors.PanelBg
+giftFrame.BorderSizePixel = 0
+giftFrame.Visible = false
+giftFrame.ZIndex = 5
+giftFrame.Parent = giftGui
+Instance.new("UICorner", giftFrame).CornerRadius = UDim.new(0, 16)
+local giftStroke = Instance.new("UIStroke", giftFrame)
+giftStroke.Color = Color3.fromRGB(50, 50, 60)
+giftStroke.Thickness = 1
+
+-- Blue header
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1, 0, 0, 56)
+header.BackgroundColor3 = Colors.ButtonBlue
+header.BorderSizePixel = 0
+header.ZIndex = 6
+header.Parent = giftFrame
+Instance.new("UICorner", header).CornerRadius = UDim.new(0, 16)
+
+local hPatch = Instance.new("Frame")
+hPatch.Size = UDim2.new(1, 0, 0, 16)
+hPatch.Position = UDim2.new(0, 0, 1, -16)
+hPatch.BackgroundColor3 = Colors.ButtonBlue
+hPatch.BorderSizePixel = 0
+hPatch.ZIndex = 6
+hPatch.Parent = header
+
+local headerTitle = Instance.new("TextLabel")
+headerTitle.Text = "Send Robux"
+headerTitle.Font = Enum.Font.GothamBold
+headerTitle.TextSize = 20
+headerTitle.TextColor3 = Colors.White
+headerTitle.BackgroundTransparency = 1
+headerTitle.Position = UDim2.fromOffset(16, 0)
+headerTitle.Size = UDim2.new(1, -52, 1, 0)
+headerTitle.TextXAlignment = Enum.TextXAlignment.Left
+headerTitle.ZIndex = 7
+headerTitle.Parent = header
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Text = "X"
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 15
+closeBtn.TextColor3 = Colors.White
+closeBtn.BackgroundTransparency = 1
+closeBtn.Size = UDim2.fromOffset(36, 36)
+closeBtn.Position = UDim2.new(1, -8, 0.5, 0)
+closeBtn.AnchorPoint = Vector2.new(1, 0.5)
+closeBtn.ZIndex = 7
+closeBtn.Parent = header
+
+-- Tab row
+local tabRow = Instance.new("Frame")
+tabRow.Size = UDim2.new(1, -28, 0, 42)
+tabRow.Position = UDim2.new(0, 14, 0, 66)
+tabRow.BackgroundTransparency = 1
+tabRow.ZIndex = 6
+tabRow.Parent = giftFrame
+
+local function makeTab(label, xScale, anchorX)
+	local b = Instance.new("TextButton")
+	b.Text = label
+	b.Font = Enum.Font.GothamBold
+	b.TextSize = 14
+	b.TextColor3 = Colors.White
+	b.BackgroundColor3 = Colors.InactiveTab
+	b.Size = UDim2.new(0.49, 0, 1, 0)
+	b.Position = UDim2.new(xScale, 0, 0, 0)
+	b.AnchorPoint = Vector2.new(anchorX, 0)
+	b.AutoButtonColor = false
+	b.ZIndex = 7
+	b.Parent = tabRow
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
+	return b
+end
+local tabFriendsBtn = makeTab("Friends", 0, 0)
+local tabUsernameBtn = makeTab("By Username", 1, 1)
+
+-- Search / username input box
+local inputBox = Instance.new("Frame")
+inputBox.Size = UDim2.new(1, -28, 0, 44)
+inputBox.Position = UDim2.new(0, 14, 0, 118)
+inputBox.BackgroundColor3 = Colors.InputBg
+inputBox.BorderSizePixel = 0
+inputBox.ZIndex = 6
+inputBox.Parent = giftFrame
+Instance.new("UICorner", inputBox).CornerRadius = UDim.new(0, 8)
+
+local inputIcon = Instance.new("TextLabel")
+inputIcon.Text = "🔍"
+inputIcon.Font = Enum.Font.GothamBold
+inputIcon.TextSize = 14
+inputIcon.TextColor3 = Colors.GreyText
+inputIcon.BackgroundTransparency = 1
+inputIcon.Position = UDim2.fromOffset(10, 0)
+inputIcon.Size = UDim2.fromOffset(24, 44)
+inputIcon.TextXAlignment = Enum.TextXAlignment.Left
+inputIcon.ZIndex = 7
+inputIcon.Parent = inputBox
+
+local searchBox = Instance.new("TextBox")
+searchBox.BackgroundTransparency = 1
+searchBox.Position = UDim2.fromOffset(36, 0)
+searchBox.Size = UDim2.new(1, -44, 1, 0)
+searchBox.Font = Enum.Font.GothamMedium
+searchBox.PlaceholderText = "Search friends..."
+searchBox.PlaceholderColor3 = Colors.GreyText
+searchBox.Text = ""
+searchBox.TextColor3 = Colors.White
+searchBox.TextSize = 14
+searchBox.TextXAlignment = Enum.TextXAlignment.Left
+searchBox.ClearTextOnFocus = false
+searchBox.ZIndex = 7
+searchBox.Parent = inputBox
+
+local usernameBox = Instance.new("TextBox")
+usernameBox.BackgroundTransparency = 1
+usernameBox.Position = UDim2.fromOffset(36, 0)
+usernameBox.Size = UDim2.new(1, -44, 1, 0)
+usernameBox.Font = Enum.Font.GothamMedium
+usernameBox.PlaceholderText = "Enter username..."
+usernameBox.PlaceholderColor3 = Colors.GreyText
+usernameBox.Text = ""
+usernameBox.TextColor3 = Colors.White
+usernameBox.TextSize = 14
+usernameBox.TextXAlignment = Enum.TextXAlignment.Left
+usernameBox.ClearTextOnFocus = false
+usernameBox.Visible = false
+usernameBox.ZIndex = 7
+usernameBox.Parent = inputBox
+
+-- Content area
+local contentArea = Instance.new("Frame")
+contentArea.Size = UDim2.new(1, -28, 0, 242)
+contentArea.Position = UDim2.new(0, 14, 0, 172)
+contentArea.BackgroundColor3 = Colors.DarkBox
+contentArea.BorderSizePixel = 0
+contentArea.ZIndex = 6
+contentArea.Parent = giftFrame
+Instance.new("UICorner", contentArea).CornerRadius = UDim.new(0, 10)
+
+local friendsScroll = Instance.new("ScrollingFrame")
+friendsScroll.Size = UDim2.new(1, -6, 1, -6)
+friendsScroll.Position = UDim2.fromOffset(3, 3)
+friendsScroll.BackgroundTransparency = 1
+friendsScroll.BorderSizePixel = 0
+friendsScroll.ScrollBarThickness = 3
+friendsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+friendsScroll.ZIndex = 7
+friendsScroll.Parent = contentArea
+
+local friendsLayout = Instance.new("UIListLayout")
+friendsLayout.Padding = UDim.new(0, 4)
+friendsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+friendsLayout.Parent = friendsScroll
+
+local friendsStatusLabel = Instance.new("TextLabel")
+friendsStatusLabel.Text = "Loading friends..."
+friendsStatusLabel.Font = Enum.Font.GothamMedium
+friendsStatusLabel.TextSize = 14
+friendsStatusLabel.TextColor3 = Colors.GreyText
+friendsStatusLabel.BackgroundTransparency = 1
+friendsStatusLabel.Size = UDim2.new(1, 0, 1, 0)
+friendsStatusLabel.TextXAlignment = Enum.TextXAlignment.Center
+friendsStatusLabel.TextYAlignment = Enum.TextYAlignment.Center
+friendsStatusLabel.ZIndex = 7
+friendsStatusLabel.Parent = contentArea
+
+local lookupHint = Instance.new("TextLabel")
+lookupHint.Text = "Type a username above and\npress Enter to look them up"
+lookupHint.Font = Enum.Font.GothamMedium
+lookupHint.TextSize = 14
+lookupHint.TextColor3 = Colors.GreyText
+lookupHint.BackgroundTransparency = 1
+lookupHint.Size = UDim2.new(1, 0, 1, 0)
+lookupHint.TextWrapped = true
+lookupHint.TextXAlignment = Enum.TextXAlignment.Center
+lookupHint.TextYAlignment = Enum.TextYAlignment.Center
+lookupHint.Visible = false
+lookupHint.ZIndex = 7
+lookupHint.Parent = contentArea
+
+local spinnerFrame = Instance.new("Frame")
+spinnerFrame.Size = UDim2.fromOffset(44, 44)
+spinnerFrame.Position = UDim2.new(0.5, 0, 0.38, 0)
+spinnerFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+spinnerFrame.BackgroundTransparency = 1
+spinnerFrame.Visible = false
+spinnerFrame.ZIndex = 8
+spinnerFrame.Parent = contentArea
+
+local spinnerCircle = Instance.new("Frame")
+spinnerCircle.Size = UDim2.new(1, 0, 1, 0)
+spinnerCircle.BackgroundTransparency = 1
+spinnerCircle.ZIndex = 8
+spinnerCircle.Parent = spinnerFrame
+Instance.new("UICorner", spinnerCircle).CornerRadius = UDim.new(1, 0)
+local spinnerStroke = Instance.new("UIStroke", spinnerCircle)
+spinnerStroke.Color = Colors.ButtonBlue
+spinnerStroke.Thickness = 4
+spinnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+local searchingLabel = Instance.new("TextLabel")
+searchingLabel.Text = "Searching..."
+searchingLabel.Font = Enum.Font.GothamBold
+searchingLabel.TextSize = 14
+searchingLabel.TextColor3 = Colors.White
+searchingLabel.BackgroundTransparency = 1
+searchingLabel.Size = UDim2.new(1, 0, 0, 24)
+searchingLabel.Position = UDim2.new(0, 0, 0.62, 0)
+searchingLabel.AnchorPoint = Vector2.new(0, 0.5)
+searchingLabel.TextXAlignment = Enum.TextXAlignment.Center
+searchingLabel.Visible = false
+searchingLabel.ZIndex = 8
+searchingLabel.Parent = contentArea
+
+local spinnerConn = nil
+local function startSpinner()
+	spinnerFrame.Visible = true; searchingLabel.Visible = true
+	local rot = 0
+	spinnerConn = RunService.RenderStepped:Connect(function(dt)
+		rot = rot + 300 * dt; spinnerFrame.Rotation = rot
+	end)
+end
+local function stopSpinner()
+	if spinnerConn then spinnerConn:Disconnect(); spinnerConn = nil end
+	spinnerFrame.Visible = false; searchingLabel.Visible = false
+end
+
+local lookupCard = Instance.new("Frame")
+lookupCard.Size = UDim2.new(1, 0, 1, 0)
+lookupCard.BackgroundTransparency = 1
+lookupCard.Visible = false
+lookupCard.ZIndex = 7
+lookupCard.Parent = contentArea
+
+local searchProfilePic = Instance.new("ImageLabel")
+searchProfilePic.Size = UDim2.fromOffset(84, 84)
+searchProfilePic.Position = UDim2.new(0.5, 0, 0, 14)
+searchProfilePic.AnchorPoint = Vector2.new(0.5, 0)
+searchProfilePic.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+searchProfilePic.BackgroundTransparency = 0
+searchProfilePic.Image = ""
+searchProfilePic.ScaleType = Enum.ScaleType.Crop
+searchProfilePic.ZIndex = 8
+searchProfilePic.Parent = lookupCard
+Instance.new("UICorner", searchProfilePic).CornerRadius = UDim.new(1, 0)
+local profStroke = Instance.new("UIStroke", searchProfilePic)
+profStroke.Color = Colors.ButtonBlue
+profStroke.Thickness = 3
+
+local displayNameLabel = Instance.new("TextLabel")
+displayNameLabel.Font = Enum.Font.GothamBold
+displayNameLabel.TextSize = 16
+displayNameLabel.TextColor3 = Colors.White
+displayNameLabel.BackgroundTransparency = 1
+displayNameLabel.Position = UDim2.new(0.5, 0, 0, 106)
+displayNameLabel.AnchorPoint = Vector2.new(0.5, 0)
+displayNameLabel.Size = UDim2.new(1, -16, 0, 22)
+displayNameLabel.TextXAlignment = Enum.TextXAlignment.Center
+displayNameLabel.ZIndex = 8
+displayNameLabel.Parent = lookupCard
+
+local usernameLabel = Instance.new("TextLabel")
+usernameLabel.Font = Enum.Font.Gotham
+usernameLabel.TextSize = 13
+usernameLabel.TextColor3 = Colors.GreyText
+usernameLabel.BackgroundTransparency = 1
+usernameLabel.Position = UDim2.new(0.5, 0, 0, 130)
+usernameLabel.AnchorPoint = Vector2.new(0.5, 0)
+usernameLabel.Size = UDim2.new(1, -16, 0, 18)
+usernameLabel.TextXAlignment = Enum.TextXAlignment.Center
+usernameLabel.ZIndex = 8
+usernameLabel.Parent = lookupCard
+
+-- Divider
+local divider = Instance.new("Frame")
+divider.Size = UDim2.new(1, -28, 0, 1)
+divider.Position = UDim2.new(0, 14, 0, 424)
+divider.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+divider.BorderSizePixel = 0
+divider.ZIndex = 6
+divider.Parent = giftFrame
+
+-- "To:" row
+local toRow = Instance.new("Frame")
+toRow.Size = UDim2.new(1, -28, 0, 30)
+toRow.Position = UDim2.new(0, 14, 0, 433)
+toRow.BackgroundTransparency = 1
+toRow.ZIndex = 6
+toRow.Parent = giftFrame
+
+local toLabel = Instance.new("TextLabel")
+toLabel.Text = "To:"
+toLabel.Font = Enum.Font.GothamBold
+toLabel.TextSize = 14
+toLabel.TextColor3 = Colors.White
+toLabel.BackgroundTransparency = 1
+toLabel.Size = UDim2.fromOffset(32, 30)
+toLabel.TextXAlignment = Enum.TextXAlignment.Left
+toLabel.ZIndex = 7
+toLabel.Parent = toRow
+
+local recipientLabel = Instance.new("TextLabel")
+recipientLabel.Text = "Select a recipient..."
+recipientLabel.Font = Enum.Font.GothamMedium
+recipientLabel.TextSize = 14
+recipientLabel.TextColor3 = Colors.GreyText
+recipientLabel.BackgroundTransparency = 1
+recipientLabel.Position = UDim2.fromOffset(38, 0)
+recipientLabel.Size = UDim2.new(1, -38, 1, 0)
+recipientLabel.TextXAlignment = Enum.TextXAlignment.Left
+recipientLabel.TextTruncate = Enum.TextTruncate.AtEnd
+recipientLabel.ZIndex = 7
+recipientLabel.Parent = toRow
+
+-- Amount input
+local amountBox = Instance.new("Frame")
+amountBox.Size = UDim2.new(1, -28, 0, 44)
+amountBox.Position = UDim2.new(0, 14, 0, 472)
+amountBox.BackgroundColor3 = Colors.InputBg
+amountBox.BorderSizePixel = 0
+amountBox.ZIndex = 6
+amountBox.Parent = giftFrame
+Instance.new("UICorner", amountBox).CornerRadius = UDim.new(0, 8)
+
+local amountIcon = Instance.new("ImageLabel")
+amountIcon.Size = UDim2.fromOffset(18, 18)
+amountIcon.Position = UDim2.new(0, 10, 0.5, -9)
+amountIcon.BackgroundTransparency = 1
+amountIcon.Image = ASSETS.RobuxIcon
+amountIcon.ZIndex = 7
+amountIcon.Parent = amountBox
+
+local customAmountInput = Instance.new("TextBox")
+customAmountInput.BackgroundTransparency = 1
+customAmountInput.Position = UDim2.fromOffset(34, 0)
+customAmountInput.Size = UDim2.new(1, -42, 1, 0)
+customAmountInput.Font = Enum.Font.GothamMedium
+customAmountInput.PlaceholderText = "Enter amount..."
+customAmountInput.PlaceholderColor3 = Colors.GreyText
+customAmountInput.Text = ""
+customAmountInput.TextColor3 = Colors.White
+customAmountInput.TextSize = 14
+customAmountInput.TextXAlignment = Enum.TextXAlignment.Left
+customAmountInput.ClearTextOnFocus = false
+customAmountInput.ZIndex = 7
+customAmountInput.Parent = amountBox
+
+local sendRobuxBtn = Instance.new("TextButton")
+sendRobuxBtn.Text = "Send Robux"
+sendRobuxBtn.Font = Enum.Font.GothamBold
+sendRobuxBtn.TextSize = 16
+sendRobuxBtn.TextColor3 = Colors.White
+sendRobuxBtn.BackgroundColor3 = Colors.ButtonBlue
+sendRobuxBtn.Size = UDim2.new(1, -28, 0, 46)
+sendRobuxBtn.Position = UDim2.new(0, 14, 0, 528)
+sendRobuxBtn.AutoButtonColor = false
+sendRobuxBtn.ZIndex = 7
+sendRobuxBtn.Parent = giftFrame
+Instance.new("UICorner", sendRobuxBtn).CornerRadius = UDim.new(0, 10)
+sendRobuxBtn.MouseEnter:Connect(function()
+	TweenService:Create(sendRobuxBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(50, 120, 255)}):Play()
+end)
+sendRobuxBtn.MouseLeave:Connect(function()
+	TweenService:Create(sendRobuxBtn, TweenInfo.new(0.12), {BackgroundColor3 = Colors.ButtonBlue}):Play()
+end)
+
+---------------------------------------------------------------------
+-- RECIPIENT STATE
+---------------------------------------------------------------------
+local SelectedRecipient = { username = "", displayName = "", userId = nil }
+
+local function refreshRecipientLabel()
+	if SelectedRecipient.username ~= "" then
+		recipientLabel.Text = SelectedRecipient.displayName .. " (@" .. SelectedRecipient.username .. ")"
+		recipientLabel.TextColor3 = Colors.White
+	else
+		recipientLabel.Text = "Select a recipient..."
+		recipientLabel.TextColor3 = Colors.GreyText
+	end
+end
+
+local function setRecipient(username, displayName, userId)
+	SelectedRecipient.username = username or ""
+	SelectedRecipient.displayName = displayName or username or ""
+	SelectedRecipient.userId = userId
+	refreshRecipientLabel()
+end
+
+---------------------------------------------------------------------
+-- FRIENDS LIST
+---------------------------------------------------------------------
+local friendRowsByUser = {}
+local allFriends = {}
+local friendsLoaded = false
+
+local function createFriendRow(displayName, username, userId, thumb)
+	local row = Instance.new("TextButton")
+	row.AutoButtonColor = false
+	row.Text = ""
+	row.Size = UDim2.new(1, -6, 0, 58)
+	row.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+	row.BorderSizePixel = 0
+	row.ZIndex = 8
+	row.Parent = friendsScroll
+	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
+
+	local avatar = Instance.new("ImageLabel")
+	avatar.Size = UDim2.fromOffset(40, 40)
+	avatar.Position = UDim2.new(0, 9, 0.5, -20)
+	avatar.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+	avatar.Image = thumb or ""
+	avatar.ScaleType = Enum.ScaleType.Crop
+	avatar.ZIndex = 9
+	avatar.Parent = row
+	Instance.new("UICorner", avatar).CornerRadius = UDim.new(1, 0)
+
+	local nameLbl = Instance.new("TextLabel")
+	nameLbl.Text = displayName
+	nameLbl.Font = Enum.Font.GothamBold
+	nameLbl.TextSize = 14
+	nameLbl.TextColor3 = Colors.White
+	nameLbl.BackgroundTransparency = 1
+	nameLbl.Position = UDim2.fromOffset(58, 10)
+	nameLbl.Size = UDim2.new(1, -72, 0, 20)
+	nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+	nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+	nameLbl.ZIndex = 9
+	nameLbl.Parent = row
+
+	local userLbl = Instance.new("TextLabel")
+	userLbl.Text = "@" .. username
+	userLbl.Font = Enum.Font.Gotham
+	userLbl.TextSize = 12
+	userLbl.TextColor3 = Colors.GreyText
+	userLbl.BackgroundTransparency = 1
+	userLbl.Position = UDim2.fromOffset(58, 32)
+	userLbl.Size = UDim2.new(1, -72, 0, 17)
+	userLbl.TextXAlignment = Enum.TextXAlignment.Left
+	userLbl.TextTruncate = Enum.TextTruncate.AtEnd
+	userLbl.ZIndex = 9
+	userLbl.Parent = row
+
+	local dot = Instance.new("Frame")
+	dot.Size = UDim2.fromOffset(9, 9)
+	dot.Position = UDim2.new(1, -14, 0.5, -4)
+	dot.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+	dot.BorderSizePixel = 0
+	dot.ZIndex = 9
+	dot.Parent = row
+	Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+
+	row.MouseEnter:Connect(function()
+		TweenService:Create(row, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(42, 42, 54)}):Play()
+	end)
+	row.MouseLeave:Connect(function()
+		if SelectedRecipient.userId ~= userId then
+			TweenService:Create(row, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(30, 30, 38)}):Play()
+		end
+	end)
+	row.MouseButton1Click:Connect(function()
+		for _, r in pairs(friendRowsByUser) do
+			r.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+			local d2 = r:FindFirstChildWhichIsA("Frame")
+			if d2 then d2.BackgroundColor3 = Color3.fromRGB(70, 70, 80) end
+		end
+		row.BackgroundColor3 = Color3.fromRGB(20, 50, 110)
+		dot.BackgroundColor3 = Colors.ButtonBlue
+		setRecipient(username, displayName, userId)
+	end)
+
+	friendRowsByUser[userId] = row
+end
+
+local function renderFriends(filter)
+	filter = (filter or ""):lower()
+	for _, c in ipairs(friendsScroll:GetChildren()) do
+		if c:IsA("TextButton") then c:Destroy() end
+	end
+	friendRowsByUser = {}
+	for _, f in ipairs(allFriends) do
+		if filter == "" or f.username:lower():find(filter,1,true) or f.displayName:lower():find(filter,1,true) then
+			createFriendRow(f.displayName, f.username, f.userId, f.thumb)
+		end
+	end
+	task.wait()
+	friendsScroll.CanvasSize = UDim2.new(0, 0, 0, friendsLayout.AbsoluteContentSize.Y + 8)
+	local empty = #allFriends == 0
+	friendsStatusLabel.Visible = empty
+	if empty then friendsStatusLabel.Text = "No friends found" end
+end
+
+local function loadFriends()
+	if friendsLoaded then return end
+	friendsLoaded = true
+	task.spawn(function()
+		local ok, pages = pcall(function() return Players:GetFriendsAsync(player.UserId) end)
+		if not ok or not pages then friendsStatusLabel.Text = "Could not load friends"; return end
+		local count = 0
+		while true do
+			for _, item in ipairs(pages:GetCurrentPage()) do
+				local thumb = ""
+				pcall(function()
+					thumb = Players:GetUserThumbnailAsync(item.Id, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+				end)
+				table.insert(allFriends, {userId=item.Id, username=item.Username, displayName=item.DisplayName or item.Username, thumb=thumb})
+				count += 1
+				if count % 8 == 0 then renderFriends(searchBox.Text) end
+			end
+			if pages.IsFinished then break end
+			local ok2 = pcall(function() pages:AdvanceToNextPageAsync() end)
+			if not ok2 then break end
+		end
+		renderFriends(searchBox.Text)
+	end)
+end
+
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+	if currentTab == "friends" then renderFriends(searchBox.Text) end
+end)
+
+---------------------------------------------------------------------
+-- TAB LOGIC
+---------------------------------------------------------------------
+local currentTab = "friends"
+
+local function setTab(tab)
+	currentTab = tab
+	if tab == "friends" then
+		tabFriendsBtn.BackgroundColor3 = Colors.ButtonBlue
+		tabFriendsBtn.TextColor3 = Colors.White
+		tabUsernameBtn.BackgroundColor3 = Colors.InactiveTab
+		tabUsernameBtn.TextColor3 = Color3.fromRGB(180,180,190)
+		searchBox.Visible = true; usernameBox.Visible = false
+		inputIcon.Text = "🔍"
+		friendsScroll.Visible = true
+		friendsStatusLabel.Visible = (#allFriends == 0)
+		lookupHint.Visible = false; lookupCard.Visible = false
+		stopSpinner()
+	else
+		tabFriendsBtn.BackgroundColor3 = Colors.InactiveTab
+		tabFriendsBtn.TextColor3 = Color3.fromRGB(180,180,190)
+		tabUsernameBtn.BackgroundColor3 = Colors.ButtonBlue
+		tabUsernameBtn.TextColor3 = Colors.White
+		searchBox.Visible = false; usernameBox.Visible = true
+		inputIcon.Text = "@"
+		friendsScroll.Visible = false
+		friendsStatusLabel.Visible = false
+		stopSpinner()
+		if searchProfilePic.Image ~= "" then
+			lookupCard.Visible = true; lookupHint.Visible = false
+		else
+			lookupHint.Visible = true; lookupCard.Visible = false
+		end
+	end
+end
+
+tabFriendsBtn.MouseButton1Click:Connect(function() setTab("friends") end)
+tabUsernameBtn.MouseButton1Click:Connect(function() setTab("username") end)
+setTab("friends")
+
+---------------------------------------------------------------------
+-- KOROS CONTROL PANEL
+---------------------------------------------------------------------
+local CTRL_W, CTRL_H = 260, 160
+
+local setFrame = Instance.new("Frame")
+setFrame.Size = UDim2.new(0, CTRL_W, 0, CTRL_H)
+setFrame.Position = UDim2.new(0, 15, 1, -CTRL_H - 20)
+setFrame.BackgroundColor3 = Colors.PanelBg
+setFrame.BorderSizePixel = 0
+setFrame.ZIndex = 10
+setFrame.Parent = giftGui
+Instance.new("UICorner", setFrame).CornerRadius = UDim.new(0, 14)
+local ctrlStroke = Instance.new("UIStroke", setFrame)
+ctrlStroke.Color = Color3.fromRGB(60, 80, 180)
+ctrlStroke.Transparency = 0.3
+ctrlStroke.Thickness = 1.5
+
+local ctrlDrag = Instance.new("Frame")
+ctrlDrag.Size = UDim2.new(1, 0, 0, 44)
+ctrlDrag.BackgroundTransparency = 1
+ctrlDrag.ZIndex = 10; ctrlDrag.Active = true
+ctrlDrag.Parent = setFrame
+makeDraggable(setFrame, ctrlDrag)
+
+local discordIcon = Instance.new("Frame")
+discordIcon.Size = UDim2.fromOffset(24, 24)
+discordIcon.Position = UDim2.fromOffset(10, 10)
+discordIcon.BackgroundColor3 = Colors.DiscordBlue
+discordIcon.BorderSizePixel = 0
+discordIcon.ZIndex = 11
+discordIcon.Parent = setFrame
+Instance.new("UICorner", discordIcon).CornerRadius = UDim.new(0, 6)
+
+local dLetter = Instance.new("TextLabel")
+dLetter.Text = "JM"; dLetter.Font = Enum.Font.GothamBold; dLetter.TextSize = 13
+dLetter.TextColor3 = Colors.White; dLetter.BackgroundTransparency = 1
+dLetter.Size = UDim2.new(1,0,1,0); dLetter.ZIndex = 12; dLetter.Parent = discordIcon
+
+local headerText = Instance.new("TextLabel")
+headerText.Text = "Jeyem"
+headerText.Font = Enum.Font.GothamSemibold; headerText.TextSize = 11
+headerText.TextColor3 = Colors.DiscordBlue; headerText.BackgroundTransparency = 1
+headerText.Size = UDim2.new(1, -56, 0, 24); headerText.Position = UDim2.fromOffset(40, 10)
+headerText.TextXAlignment = Enum.TextXAlignment.Left; headerText.ZIndex = 11; headerText.Parent = setFrame
+
+local minBtn = Instance.new("TextButton")
+minBtn.Text = "—"; minBtn.Font = Enum.Font.GothamBold; minBtn.TextSize = 12
+minBtn.TextColor3 = Colors.GreyText; minBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+minBtn.Size = UDim2.fromOffset(26, 24); minBtn.Position = UDim2.new(1, -10, 0, 10)
+minBtn.AnchorPoint = Vector2.new(1, 0); minBtn.ZIndex = 11; minBtn.Parent = setFrame
+Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 6)
+
+local topSep = Instance.new("Frame")
+topSep.BackgroundColor3 = Color3.fromRGB(50,50,60); topSep.BorderSizePixel = 0
+topSep.Size = UDim2.new(1,-18,0,1); topSep.Position = UDim2.new(0.5,0,0,44)
+topSep.AnchorPoint = Vector2.new(0.5,0); topSep.ZIndex = 11; topSep.Parent = setFrame
+
+local balanceLabel = Instance.new("TextLabel")
+balanceLabel.Text = "Robux Balance"; balanceLabel.Font = Enum.Font.GothamBold; balanceLabel.TextSize = 13
+balanceLabel.TextColor3 = Colors.White; balanceLabel.BackgroundTransparency = 1
+balanceLabel.Size = UDim2.fromOffset(110, 32); balanceLabel.Position = UDim2.fromOffset(10, 54)
+balanceLabel.TextXAlignment = Enum.TextXAlignment.Left; balanceLabel.ZIndex = 11; balanceLabel.Parent = setFrame
+
+local balanceBox = Instance.new("Frame")
+balanceBox.Size = UDim2.fromOffset(110, 32); balanceBox.Position = UDim2.new(1,-10,0,54)
+balanceBox.AnchorPoint = Vector2.new(1,0); balanceBox.BackgroundColor3 = Colors.DarkBox
+balanceBox.BorderSizePixel = 0; balanceBox.ZIndex = 11; balanceBox.Parent = setFrame
+Instance.new("UICorner", balanceBox).CornerRadius = UDim.new(0, 7)
+
+local balIcon = Instance.new("ImageLabel")
+balIcon.Size = UDim2.fromOffset(14,14); balIcon.Position = UDim2.new(0,6,0.5,-7)
+balIcon.BackgroundTransparency = 1; balIcon.Image = ASSETS.RobuxIcon; balIcon.ZIndex = 12; balIcon.Parent = balanceBox
+
+local balanceInput = Instance.new("TextBox")
+balanceInput.Text = "0"; balanceInput.Font = Enum.Font.GothamBold; balanceInput.TextSize = 13
+balanceInput.TextColor3 = Colors.White; balanceInput.PlaceholderText = "0"
+balanceInput.PlaceholderColor3 = Color3.fromRGB(130,130,135); balanceInput.BackgroundTransparency = 1
+balanceInput.Size = UDim2.new(1,-28,1,0); balanceInput.Position = UDim2.fromOffset(24,0)
+balanceInput.TextXAlignment = Enum.TextXAlignment.Right; balanceInput.ClearTextOnFocus = false
+balanceInput.ZIndex = 12; balanceInput.Parent = balanceBox
+
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Text = "Load Speed (s)"; speedLabel.Font = Enum.Font.GothamBold; speedLabel.TextSize = 13
+speedLabel.TextColor3 = Colors.White; speedLabel.BackgroundTransparency = 1
+speedLabel.Size = UDim2.fromOffset(110, 32); speedLabel.Position = UDim2.fromOffset(10, 94)
+speedLabel.TextXAlignment = Enum.TextXAlignment.Left; speedLabel.ZIndex = 11; speedLabel.Parent = setFrame
+
+local speedBox = Instance.new("Frame")
+speedBox.Size = UDim2.fromOffset(90,32); speedBox.Position = UDim2.new(1,-10,0,94)
+speedBox.AnchorPoint = Vector2.new(1,0); speedBox.BackgroundColor3 = Colors.DarkBox
+speedBox.BorderSizePixel = 0; speedBox.ZIndex = 11; speedBox.Parent = setFrame
+Instance.new("UICorner", speedBox).CornerRadius = UDim.new(0, 7)
+
+local speedInput = Instance.new("TextBox")
+speedInput.Text = "3"; speedInput.Font = Enum.Font.GothamBold; speedInput.TextSize = 13
+speedInput.TextColor3 = Colors.White; speedInput.PlaceholderText = "3"
+speedInput.PlaceholderColor3 = Color3.fromRGB(130,130,135); speedInput.BackgroundTransparency = 1
+speedInput.Size = UDim2.new(1,-12,1,0); speedInput.Position = UDim2.fromOffset(6,0)
+speedInput.TextXAlignment = Enum.TextXAlignment.Right; speedInput.ClearTextOnFocus = false
+speedInput.ZIndex = 12; speedInput.Parent = speedBox
+
+local botSep = Instance.new("Frame")
+botSep.BackgroundColor3 = Color3.fromRGB(50,50,60); botSep.BorderSizePixel = 0
+botSep.Size = UDim2.new(1,-18,0,1); botSep.Position = UDim2.new(0.5,0,0,136)
+botSep.AnchorPoint = Vector2.new(0.5,0); botSep.ZIndex = 11; botSep.Parent = setFrame
+
+local footerText = Instance.new("TextLabel")
+footerText.Text = "By Jeyem | Robux"; footerText.Font = Enum.Font.GothamMedium; footerText.TextSize = 10
+footerText.TextColor3 = Color3.fromRGB(120,120,130); footerText.BackgroundTransparency = 1
+footerText.Size = UDim2.new(1,0,0,20); footerText.Position = UDim2.new(0,0,1,-22)
+footerText.TextXAlignment = Enum.TextXAlignment.Center; footerText.ZIndex = 11; footerText.Parent = setFrame
+
+local miniKBtn = Instance.new("TextButton")
+miniKBtn.Text = "JM"; miniKBtn.Font = Enum.Font.GothamBold; miniKBtn.TextSize = 17
+miniKBtn.TextColor3 = Colors.White; miniKBtn.BackgroundColor3 = Colors.DiscordBlue
+miniKBtn.Size = UDim2.fromOffset(38,38); miniKBtn.Position = UDim2.new(0,15,0,70)
+miniKBtn.BorderSizePixel = 0; miniKBtn.ZIndex = 10; miniKBtn.Visible = false; miniKBtn.Parent = giftGui
+Instance.new("UICorner", miniKBtn).CornerRadius = UDim.new(0, 10)
+local miniStroke = Instance.new("UIStroke", miniKBtn)
+miniStroke.Color = Color3.fromRGB(120,140,255); miniStroke.Transparency = 0.3; miniStroke.Thickness = 1.5
+makeDraggable(miniKBtn)
+
+---------------------------------------------------------------------
+-- CONFIRM PANEL — updated size + darker background
+---------------------------------------------------------------------
+local CF_W, CF_H = 420, 500
+
+local confirmFrame = Instance.new("Frame")
+confirmFrame.Name = "ConfirmFrame"
+confirmFrame.Size = UDim2.fromOffset(CF_W, CF_H)
+confirmFrame.Position = UDim2.fromScale(0.5, 0.5)
+confirmFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+confirmFrame.BackgroundColor3 = Color3.fromRGB(16, 16, 20)  -- very dark like screenshot
+confirmFrame.BorderSizePixel = 0
+confirmFrame.Visible = false
+confirmFrame.ZIndex = 20
+confirmFrame.Parent = giftGui
+Instance.new("UICorner", confirmFrame).CornerRadius = UDim.new(0, 18)
+local cfStroke = Instance.new("UIStroke", confirmFrame)
+cfStroke.Color = Color3.fromRGB(60, 60, 75); cfStroke.Transparency = 0.5; cfStroke.Thickness = 1
+
+-- Header row
+local cfHeader = Instance.new("Frame")
+cfHeader.Size = UDim2.new(1,0,0,56); cfHeader.BackgroundTransparency = 1
+cfHeader.ZIndex = 21; cfHeader.Parent = confirmFrame
+
+local cfLogo = Instance.new("ImageLabel")
+cfLogo.Size = UDim2.fromOffset(26,26); cfLogo.Position = UDim2.new(0,16,0.5,0)
+cfLogo.AnchorPoint = Vector2.new(0,0.5); cfLogo.BackgroundTransparency = 1
+cfLogo.Image = ASSETS.RobuxPlusIcon; cfLogo.ZIndex = 22; cfLogo.Parent = cfHeader
+
+local cfTitle = Instance.new("TextLabel")
+cfTitle.Text = "Send Robux"; cfTitle.Font = Enum.Font.GothamBold; cfTitle.TextSize = 18
+cfTitle.TextColor3 = Colors.White; cfTitle.BackgroundTransparency = 1
+cfTitle.Position = UDim2.fromOffset(48,0); cfTitle.Size = UDim2.new(0,160,1,0)
+cfTitle.TextXAlignment = Enum.TextXAlignment.Left; cfTitle.ZIndex = 22; cfTitle.Parent = cfHeader
+
+-- Balance display top-right
+local cfBalGroup = Instance.new("Frame")
+cfBalGroup.Size = UDim2.fromOffset(130,30); cfBalGroup.AnchorPoint = Vector2.new(1,0.5)
+cfBalGroup.Position = UDim2.new(1,-46,0.5,0); cfBalGroup.BackgroundTransparency = 1
+cfBalGroup.ZIndex = 22; cfBalGroup.Parent = cfHeader
+local cfBalLayout = Instance.new("UIListLayout", cfBalGroup)
+cfBalLayout.FillDirection = Enum.FillDirection.Horizontal
+cfBalLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+cfBalLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+cfBalLayout.Padding = UDim.new(0,5)
+
+local cfBalIcon = Instance.new("ImageLabel")
+cfBalIcon.Size = UDim2.fromOffset(18,18); cfBalIcon.BackgroundTransparency = 1
+cfBalIcon.Image = ASSETS.RobuxIcon; cfBalIcon.ZIndex = 23; cfBalIcon.Parent = cfBalGroup
+
+local cfBalLabel = Instance.new("TextLabel")
+cfBalLabel.Text = "0"; cfBalLabel.Font = Enum.Font.GothamBold; cfBalLabel.TextSize = 16
+cfBalLabel.TextColor3 = Colors.White; cfBalLabel.BackgroundTransparency = 1
+cfBalLabel.Size = UDim2.fromOffset(0,30); cfBalLabel.AutomaticSize = Enum.AutomaticSize.X
+cfBalLabel.ZIndex = 23; cfBalLabel.Parent = cfBalGroup
+
+local cfClose = Instance.new("ImageButton")
+cfClose.BackgroundTransparency = 1; cfClose.Image = ASSETS.XButton
+cfClose.ImageColor3 = Colors.White; cfClose.Size = UDim2.fromOffset(22,22)
+cfClose.Position = UDim2.new(1,-14,0.5,0); cfClose.AnchorPoint = Vector2.new(1,0.5)
+cfClose.ZIndex = 22; cfClose.Parent = cfHeader
+
+-- User card — darker inner card
+local userCard = Instance.new("Frame")
+userCard.Size = UDim2.new(1,-28,0,178); userCard.Position = UDim2.new(0,14,0,64)
+userCard.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
+userCard.BorderSizePixel = 0
+userCard.ZIndex = 21; userCard.Parent = confirmFrame
+Instance.new("UICorner", userCard).CornerRadius = UDim.new(0, 14)
+
+local cfAvatar = Instance.new("ImageLabel")
+cfAvatar.Size = UDim2.fromOffset(80,80); cfAvatar.Position = UDim2.new(0.5,0,0,16)
+cfAvatar.AnchorPoint = Vector2.new(0.5,0); cfAvatar.BackgroundColor3 = Color3.fromRGB(40,40,50)
+cfAvatar.BackgroundTransparency = 0; cfAvatar.Image = ""; cfAvatar.ScaleType = Enum.ScaleType.Crop
+cfAvatar.ZIndex = 22; cfAvatar.Parent = userCard
+Instance.new("UICorner", cfAvatar).CornerRadius = UDim.new(1, 0)
+local cfAvatarStroke = Instance.new("UIStroke", cfAvatar)
+cfAvatarStroke.Color = Color3.fromRGB(60,90,180); cfAvatarStroke.Thickness = 2; cfAvatarStroke.Transparency = 0.3
+
+local cfDisplay = Instance.new("TextLabel")
+cfDisplay.Font = Enum.Font.GothamBold; cfDisplay.TextSize = 16; cfDisplay.TextColor3 = Colors.White
+cfDisplay.BackgroundTransparency = 1; cfDisplay.Position = UDim2.new(0,0,0,103)
+cfDisplay.Size = UDim2.new(1,0,0,22); cfDisplay.TextXAlignment = Enum.TextXAlignment.Center
+cfDisplay.ZIndex = 22; cfDisplay.Parent = userCard
+
+local cfUser = Instance.new("TextLabel")
+cfUser.Font = Enum.Font.Gotham; cfUser.TextSize = 13; cfUser.TextColor3 = Colors.GreyText
+cfUser.BackgroundTransparency = 1; cfUser.Position = UDim2.new(0,0,0,126)
+cfUser.Size = UDim2.new(1,0,0,18); cfUser.TextXAlignment = Enum.TextXAlignment.Center
+cfUser.ZIndex = 22; cfUser.Parent = userCard
+
+-- Meta row (mutual friends + joined)
+local metaRow = Instance.new("Frame")
+metaRow.Size = UDim2.new(1,-16,0,26); metaRow.Position = UDim2.new(0.5,0,1,-32)
+metaRow.AnchorPoint = Vector2.new(0.5,0); metaRow.BackgroundTransparency = 1
+metaRow.ZIndex = 22; metaRow.Parent = userCard
+local metaLayout = Instance.new("UIListLayout", metaRow)
+metaLayout.FillDirection = Enum.FillDirection.Horizontal
+metaLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+metaLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+metaLayout.Padding = UDim.new(0, 18)
+
+local function makeMetaItem(iconAsset, defaultText)
+	local f = Instance.new("Frame")
+	f.BackgroundTransparency = 1; f.Size = UDim2.fromOffset(0,22)
+	f.AutomaticSize = Enum.AutomaticSize.X; f.ZIndex = 22
+	local inner = Instance.new("UIListLayout", f)
+	inner.FillDirection = Enum.FillDirection.Horizontal
+	inner.VerticalAlignment = Enum.VerticalAlignment.Center
+	inner.Padding = UDim.new(0, 5)
+	local icon = Instance.new("ImageLabel")
+	icon.Size = UDim2.fromOffset(16,16); icon.BackgroundTransparency = 1
+	icon.Image = iconAsset; icon.ImageColor3 = Colors.GreyText; icon.ZIndex = 23; icon.Parent = f
+	local lbl = Instance.new("TextLabel")
+	lbl.Text = defaultText; lbl.Font = Enum.Font.GothamMedium; lbl.TextSize = 12
+	lbl.TextColor3 = Colors.GreyText; lbl.BackgroundTransparency = 1
+	lbl.Size = UDim2.fromOffset(0,22); lbl.AutomaticSize = Enum.AutomaticSize.X
+	lbl.ZIndex = 23; lbl.Parent = f
+	return f, lbl
+end
+
+local cfMutual, cfMutualText = makeMetaItem(ASSETS.MutualFriendsIcon, "— mutual Friends")
+cfMutual.Parent = metaRow
+local cfJoined, cfJoinedText = makeMetaItem(ASSETS.JoinedIcon, "Joined in —")
+cfJoined.Parent = metaRow
+
+-- Amount card
+local amtCard = Instance.new("Frame")
+amtCard.Size = UDim2.new(1,-28,0,110); amtCard.Position = UDim2.new(0,14,0,254)
+amtCard.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
+amtCard.BorderSizePixel = 0
+amtCard.ZIndex = 21; amtCard.Parent = confirmFrame
+Instance.new("UICorner", amtCard).CornerRadius = UDim.new(0, 14)
+
+local amtRow = Instance.new("Frame")
+amtRow.Size = UDim2.new(1,0,0,64); amtRow.Position = UDim2.new(0,0,0,8)
+amtRow.BackgroundTransparency = 1; amtRow.ZIndex = 22; amtRow.Parent = amtCard
+local amtRowL = Instance.new("UIListLayout", amtRow)
+amtRowL.FillDirection = Enum.FillDirection.Horizontal
+amtRowL.HorizontalAlignment = Enum.HorizontalAlignment.Center
+amtRowL.VerticalAlignment = Enum.VerticalAlignment.Center
+amtRowL.Padding = UDim.new(0, 10)
+
+local amtIcon = Instance.new("ImageLabel")
+amtIcon.Size = UDim2.fromOffset(38,38); amtIcon.BackgroundTransparency = 1
+amtIcon.Image = ASSETS.RobuxIcon; amtIcon.ZIndex = 22; amtIcon.Parent = amtRow
+
+local amtBig = Instance.new("TextLabel")
+amtBig.Text = "0"; amtBig.Font = Enum.Font.GothamBold; amtBig.TextSize = 44
+amtBig.TextColor3 = Colors.White; amtBig.BackgroundTransparency = 1
+amtBig.Size = UDim2.fromOffset(0,54); amtBig.AutomaticSize = Enum.AutomaticSize.X
+amtBig.ZIndex = 22; amtBig.Parent = amtRow
+
+local feeText = Instance.new("TextLabel")
+feeText.Font = Enum.Font.Gotham; feeText.TextSize = 12; feeText.TextColor3 = Colors.GreyText
+feeText.BackgroundTransparency = 1; feeText.Position = UDim2.new(0,14,0,72)
+feeText.Size = UDim2.new(1,-28,0,32); feeText.TextWrapped = true
+feeText.TextXAlignment = Enum.TextXAlignment.Center; feeText.ZIndex = 22; feeText.Parent = amtCard
+
+-- Send button with loading bar
+local sendBtn = Instance.new("TextButton")
+sendBtn.Name = "SendBtn"; sendBtn.Position = UDim2.new(0,14,0,376)
+sendBtn.Size = UDim2.new(1,-28,0,50); sendBtn.BackgroundColor3 = Color3.fromRGB(0,120,255)
+sendBtn.AutoButtonColor = false; sendBtn.Text = ""; sendBtn.ZIndex = 22; sendBtn.Parent = confirmFrame
+Instance.new("UICorner", sendBtn).CornerRadius = UDim.new(0, 12)
+
+local clipping = Instance.new("Frame")
+clipping.Size = UDim2.new(0,0,1,0); clipping.BackgroundTransparency = 1
+clipping.BorderSizePixel = 0; clipping.ClipsDescendants = true
+clipping.ZIndex = 23; clipping.Parent = sendBtn
+
+local fillBar = Instance.new("Frame")
+fillBar.Size = UDim2.new(1,0,1,0); fillBar.BackgroundColor3 = Color3.fromRGB(0,120,255)
+fillBar.BorderSizePixel = 0; fillBar.ZIndex = 24; fillBar.Parent = clipping
+Instance.new("UICorner", fillBar).CornerRadius = UDim.new(0, 11)
+
+local btnLabel = Instance.new("TextLabel")
+btnLabel.Size = UDim2.new(1,0,1,0); btnLabel.BackgroundTransparency = 1
+btnLabel.Text = "Send"; btnLabel.Font = Enum.Font.GothamBold; btnLabel.TextSize = 17
+btnLabel.TextColor3 = Color3.new(1,1,1); btnLabel.ZIndex = 25; btnLabel.Parent = sendBtn
+
+local disclaimer = Instance.new("TextLabel")
+disclaimer.Text = "You need an age check or parental consent to send Robux. Once you send, you cannot cancel."
+disclaimer.Font = Enum.Font.Gotham; disclaimer.TextSize = 12; disclaimer.TextColor3 = Colors.GreyText
+disclaimer.BackgroundTransparency = 1; disclaimer.Position = UDim2.new(0,14,0,434)
+disclaimer.Size = UDim2.new(1,-28,0,56); disclaimer.TextWrapped = true
+disclaimer.TextXAlignment = Enum.TextXAlignment.Center; disclaimer.ZIndex = 22; disclaimer.Parent = confirmFrame
+
+---------------------------------------------------------------------
+-- SUCCESS PANEL — updated size + dark background matching screenshot
+---------------------------------------------------------------------
+local SF_W, SF_H = 420, 290
+
+local successFrame = Instance.new("Frame")
+successFrame.Name = "SuccessFrame"
+successFrame.Size = UDim2.fromOffset(SF_W, SF_H)
+successFrame.Position = UDim2.fromScale(0.5, 0.5)
+successFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+successFrame.BackgroundColor3 = Color3.fromRGB(16, 16, 20)  -- same dark as confirm
+successFrame.BorderSizePixel = 0
+successFrame.Visible = false
+successFrame.ZIndex = 30
+successFrame.Parent = giftGui
+Instance.new("UICorner", successFrame).CornerRadius = UDim.new(0, 18)
+local sfStroke = Instance.new("UIStroke", successFrame)
+sfStroke.Color = Color3.fromRGB(60, 60, 75); sfStroke.Transparency = 0.5; sfStroke.Thickness = 1
+
+-- Header
+local sfHeader = Instance.new("Frame")
+sfHeader.Size = UDim2.new(1,0,0,56); sfHeader.BackgroundTransparency = 1
+sfHeader.ZIndex = 31; sfHeader.Parent = successFrame
+
+local sfLogo = Instance.new("ImageLabel")
+sfLogo.Size = UDim2.fromOffset(26,26); sfLogo.Position = UDim2.new(0,16,0.5,0)
+sfLogo.AnchorPoint = Vector2.new(0,0.5); sfLogo.BackgroundTransparency = 1
+sfLogo.Image = ASSETS.RobuxPlusIcon; sfLogo.ZIndex = 32; sfLogo.Parent = sfHeader
+
+local sfHeaderTitle = Instance.new("TextLabel")
+sfHeaderTitle.Text = "Send Robux"; sfHeaderTitle.Font = Enum.Font.GothamBold; sfHeaderTitle.TextSize = 18
+sfHeaderTitle.TextColor3 = Colors.White; sfHeaderTitle.BackgroundTransparency = 1
+sfHeaderTitle.Position = UDim2.fromOffset(48,0); sfHeaderTitle.Size = UDim2.new(0,160,1,0)
+sfHeaderTitle.TextXAlignment = Enum.TextXAlignment.Left; sfHeaderTitle.ZIndex = 32; sfHeaderTitle.Parent = sfHeader
+
+local sfBalGroup = Instance.new("Frame")
+sfBalGroup.Size = UDim2.fromOffset(130,30); sfBalGroup.AnchorPoint = Vector2.new(1,0.5)
+sfBalGroup.Position = UDim2.new(1,-46,0.5,0); sfBalGroup.BackgroundTransparency = 1
+sfBalGroup.ZIndex = 32; sfBalGroup.Parent = sfHeader
+local sfBalL = Instance.new("UIListLayout", sfBalGroup)
+sfBalL.FillDirection = Enum.FillDirection.Horizontal
+sfBalL.HorizontalAlignment = Enum.HorizontalAlignment.Right
+sfBalL.VerticalAlignment = Enum.VerticalAlignment.Center
+sfBalL.Padding = UDim.new(0,5)
+
+local sfBalIcon = Instance.new("ImageLabel")
+sfBalIcon.Size = UDim2.fromOffset(18,18); sfBalIcon.BackgroundTransparency = 1
+sfBalIcon.Image = ASSETS.RobuxIcon; sfBalIcon.ZIndex = 33; sfBalIcon.Parent = sfBalGroup
+
+local sfBalLabel = Instance.new("TextLabel")
+sfBalLabel.Text = "0"; sfBalLabel.Font = Enum.Font.GothamBold; sfBalLabel.TextSize = 16
+sfBalLabel.TextColor3 = Colors.White; sfBalLabel.BackgroundTransparency = 1
+sfBalLabel.Size = UDim2.fromOffset(0,30); sfBalLabel.AutomaticSize = Enum.AutomaticSize.X
+sfBalLabel.ZIndex = 33; sfBalLabel.Parent = sfBalGroup
+
+local sfClose = Instance.new("ImageButton")
+sfClose.BackgroundTransparency = 1; sfClose.Image = ASSETS.XButton
+sfClose.ImageColor3 = Colors.White; sfClose.Size = UDim2.fromOffset(22,22)
+sfClose.Position = UDim2.new(1,-14,0.5,0); sfClose.AnchorPoint = Vector2.new(1,0.5)
+sfClose.ZIndex = 32; sfClose.Parent = sfHeader
+
+-- Check icon
+local checkContainer = Instance.new("Frame")
+checkContainer.Size = UDim2.fromOffset(70, 70)
+checkContainer.Position = UDim2.new(0.5, 0, 0, 62)
+checkContainer.AnchorPoint = Vector2.new(0.5, 0)
+checkContainer.BackgroundTransparency = 1
+checkContainer.ZIndex = 31
+checkContainer.Parent = successFrame
+
+local checkImage = Instance.new("ImageLabel")
+checkImage.Size = UDim2.fromScale(1, 1)
+checkImage.BackgroundTransparency = 1
+checkImage.Image = ASSETS.CheckCircle
+checkImage.ZIndex = 31
+checkImage.Parent = checkContainer
+
+-- "You sent X Robux" text
+local sfSentText = Instance.new("TextLabel")
+sfSentText.Font = Enum.Font.GothamMedium
+sfSentText.TextSize = 16
+sfSentText.TextWrapped = true
+sfSentText.Position = UDim2.new(0, 20, 0, 142)
+sfSentText.Size = UDim2.new(1, -40, 0, 26)
+sfSentText.TextColor3 = Color3.fromRGB(220, 220, 220)
+sfSentText.BackgroundTransparency = 1
+sfSentText.Text = "You sent 0 Robux"
+sfSentText.TextXAlignment = Enum.TextXAlignment.Center
+sfSentText.ZIndex = 31
+sfSentText.Parent = successFrame
+
+-- OK button
+local sfOkBtn = Instance.new("TextButton")
+sfOkBtn.Size = UDim2.new(1, -28, 0, 48)
+sfOkBtn.Position = UDim2.new(0, 14, 1, -62)
+sfOkBtn.AnchorPoint = Vector2.new(0, 0)
+sfOkBtn.Text = "OK"
+sfOkBtn.Font = Enum.Font.GothamBold
+sfOkBtn.TextSize = 16
+sfOkBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+sfOkBtn.TextColor3 = Color3.new(1, 1, 1)
+sfOkBtn.ZIndex = 32
+sfOkBtn.Parent = successFrame
+Instance.new("UICorner", sfOkBtn).CornerRadius = UDim.new(0, 10)
+
+---------------------------------------------------------------------
+-- HTTP HELPER
+---------------------------------------------------------------------
+local function httpRequest(url)
+	local req = (syn and syn.request) or (http and http.request) or http_request or request
+	if not req then return nil end
+	local ok, res = pcall(req, {Url=url, Method="GET"})
+	if ok and res and (res.StatusCode==200 or res.Status==200) and res.Body then return res.Body end
+	return nil
+end
+
+local _joinYearCache, _mutualCache, _localFriendIds = {}, {}, nil
+
+local function getLocalFriendIds()
+	if _localFriendIds then return _localFriendIds end
+	_localFriendIds = {}
+	local ok, pages = pcall(function() return Players:GetFriendsAsync(player.UserId) end)
+	if not ok or not pages then return _localFriendIds end
+	while true do
+		for _, item in ipairs(pages:GetCurrentPage()) do _localFriendIds[item.Id] = true end
+		if pages.IsFinished then break end
+		if not pcall(function() pages:AdvanceToNextPageAsync() end) then break end
+	end
+	return _localFriendIds
+end
+
+local function fetchJoinYear(userId, cb)
+	task.spawn(function()
+		if _joinYearCache[userId] ~= nil then cb(_joinYearCache[userId]); return end
+		local body = httpRequest("https://users.roblox.com/v1/users/"..userId)
+		local y = nil
+		if body then local yr = body:match('"created"%s*:%s*"(%d%d%d%d)'); if yr then y = tonumber(yr) end end
+		_joinYearCache[userId] = y or false; cb(y)
+	end)
+end
+
+local function fetchMutualCount(userId, cb)
+	task.spawn(function()
+		if _mutualCache[userId] ~= nil then cb(_mutualCache[userId]); return end
+		if userId == player.UserId then _mutualCache[userId]=0; cb(0); return end
+		local localSet = getLocalFriendIds()
+		local ok, pages = pcall(function() return Players:GetFriendsAsync(userId) end)
+		if not ok or not pages then _mutualCache[userId]=0; cb(0); return end
+		local count = 0
+		while true do
+			for _, item in ipairs(pages:GetCurrentPage()) do if localSet[item.Id] then count+=1 end end
+			if pages.IsFinished then break end
+			if not pcall(function() pages:AdvanceToNextPageAsync() end) then break end
+		end
+		_mutualCache[userId]=count; cb(count)
+	end)
+end
+
+---------------------------------------------------------------------
+-- LOADING BAR
+---------------------------------------------------------------------
+local pendingAmount = 0
+local loadingConn = nil
+isLoading = false
+
+local function stopLoading()
+	if loadingConn then pcall(function() loadingConn:Disconnect() end); loadingConn = nil end
+	isLoading = false
+	sendBtn.Active = true
+	sendBtn.BackgroundColor3 = Color3.fromRGB(0,120,255)
+	clipping.Size = UDim2.new(0,0,1,0)
+	fillBar.Size = UDim2.new(1,0,1,0)
+	btnLabel.Text = "Send"
+end
+
+local function startLoading()
+	stopLoading()
+	isLoading = true
+	sendBtn.Active = false
+	sendBtn.BackgroundColor3 = Color3.fromRGB(0,60,140)
+	clipping.Size = UDim2.new(0,0,1,0)
+	local speedVal = math.max(LoadSpeed, 0.1)
+	task.wait(0.2)
+	local startTime = tick()
+	loadingConn = RunService.RenderStepped:Connect(function()
+		local progress = math.clamp((tick()-startTime)/speedVal, 0, 1)
+		clipping.Size = UDim2.new(progress, 0, 1, 0)
+		fillBar.Size = UDim2.new(progress == 0 and 0 or 1/progress, 0, 1, 0)
+		if progress >= 1 then
+			loadingConn:Disconnect(); loadingConn = nil
+			isLoading = false
+			sendBtn.Active = true
+			sendBtn.BackgroundColor3 = Color3.fromRGB(0,120,255)
+			clipping.Size = UDim2.new(1,0,1,0)
+			fillBar.Size = UDim2.new(1,0,1,0)
+			btnLabel.Text = "Send"
+		end
+	end)
+end
+
+---------------------------------------------------------------------
+-- SYNC BALANCE LABELS
+---------------------------------------------------------------------
+local function syncAllBalanceLabels()
+	local fmt = formatNumber(CurrentBalance)
+	balanceInput.Text = fmt
+	cfBalLabel.Text   = fmt
+	sfBalLabel.Text   = fmt
+end
+
+---------------------------------------------------------------------
+-- PANEL FUNCTIONS
+---------------------------------------------------------------------
+local function showSuccessPanel()
+	sfSentText.Text = "You sent "..formatNumber(pendingAmount).." Robux"
+	sfBalLabel.Text = formatNumber(CurrentBalance)
+	confirmFrame.Visible = false
+	successFrame.Visible = true
+	fadeIn(successFrame)
+end
+
+local function closeSuccessPanel()
+	fadeOut(successFrame, function()
+		toggleOverlay(false)
+		restoreMainGameUI()
+		usernameBox.Text = ""
+		customAmountInput.Text = ""
+	end)
+end
+
+local function closeConfirmPanel(andCloseAll)
+	stopLoading()
+	fadeOut(confirmFrame, function()
+		if andCloseAll then
+			toggleOverlay(false)
+			restoreMainGameUI()
+		end
+	end)
+end
+
+local function openConfirmPanel(amt)
+	pendingAmount = math.floor(amt)
+	cfBalLabel.Text = formatNumber(CurrentBalance)
+	cfDisplay.Text = SelectedRecipient.displayName
+	cfUser.Text = "@"..SelectedRecipient.username
+	amtBig.Text = formatNumber(pendingAmount)
+	local gets = math.floor(pendingAmount * 0.9)
+	feeText.Text = "The recipient will get "..formatNumber(gets).." Robux after fees. In-game transfers include a 10% creator fee."
+	cfAvatar.Image = ""; cfMutualText.Text = "— mutual Friends"; cfJoinedText.Text = "Joined in —"
+	stopLoading()
+
+	local function doOpen()
+		confirmFrame.BackgroundTransparency = 0
+		confirmFrame.Visible = true
+		fadeIn(confirmFrame)
+		task.spawn(startLoading)
+		local uid = SelectedRecipient.userId
+		if uid then
+			task.spawn(function()
+				local ok, img = pcall(function()
+					return Players:GetUserThumbnailAsync(uid, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+				end)
+				if ok and img and confirmFrame.Visible then cfAvatar.Image = img end
+			end)
+			fetchMutualCount(uid, function(n)
+				if confirmFrame.Visible then cfMutualText.Text = n.." mutual Friends" end
+			end)
+			fetchJoinYear(uid, function(y)
+				if confirmFrame.Visible then cfJoinedText.Text = "Joined in "..(y and tostring(y) or "—") end
+			end)
+		end
+	end
+
+	if giftFrame.Visible then
+		fadeOut(giftFrame, doOpen)
+	else
+		doOpen()
+	end
+end
+
+local function showGiftPanel()
+	hideMainGameUI()
+	syncAllBalanceLabels()
+	giftFrame.BackgroundTransparency = 0
+	giftFrame.Visible = true
+	fadeIn(giftFrame)
+	toggleOverlay(true)
+	loadFriends()
+end
+
+local function closeGiftPanel()
+	fadeOut(giftFrame, function()
+		toggleOverlay(false)
+		restoreMainGameUI()
+		usernameBox.Text = ""
+		customAmountInput.Text = ""
+	end)
+end
+
+---------------------------------------------------------------------
+-- USERNAME SEARCH
+---------------------------------------------------------------------
+local currentSearchId = 0
+
+local function doUsernameSearch(username)
+	currentSearchId += 1
+	local thisId = currentSearchId
+	if not username or username == "" then
+		stopSpinner(); searchProfilePic.Image = ""
+		displayNameLabel.Text = ""; usernameLabel.Text = ""
+		lookupCard.Visible = false
+		if currentTab == "username" then lookupHint.Visible = true end
+		return
+	end
+	lookupHint.Visible = false; lookupCard.Visible = false
+	startSpinner()
+	task.spawn(function()
+		local ok, userId = pcall(function() return Players:GetUserIdFromNameAsync(username) end)
+		if thisId ~= currentSearchId then return end
+		stopSpinner()
+		if ok and userId then
+			local popSound = Instance.new("Sound")
+			popSound.SoundId = ASSETS.PopSound; popSound.Volume = 0.5
+			popSound.Parent = giftFrame; popSound:Play()
+			game.Debris:AddItem(popSound, 1)
+			local thumbOk, thumb = pcall(function()
+				return Players:GetUserThumbnailAsync(userId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+			end)
+			if thisId ~= currentSearchId then return end
+			local infoOk, info = pcall(function() return UserService:GetUserInfosByUserIdsAsync({userId}) end)
+			local dn, un = username, username
+			if infoOk and info and info[1] then dn = info[1].DisplayName; un = info[1].Username end
+			if thisId ~= currentSearchId then return end
+			searchProfilePic.Image = (thumbOk and thumb and thumb~="") and thumb or ""
+			displayNameLabel.Text = dn; usernameLabel.Text = "@"..un
+			lookupHint.Visible = false; lookupCard.Visible = true
+			setRecipient(un, dn, userId)
+		else
+			if thisId ~= currentSearchId then return end
+			searchProfilePic.Image = ""; displayNameLabel.Text = "Player not found"
+			usernameLabel.Text = ""; lookupHint.Visible = false; lookupCard.Visible = true
+		end
+	end)
+end
+
+usernameBox:GetPropertyChangedSignal("Text"):Connect(function()
+	if usernameBox.Text == "" then doUsernameSearch("") end
+end)
+usernameBox.FocusLost:Connect(function()
+	if usernameBox.Text ~= "" then doUsernameSearch(usernameBox.Text) end
+end)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.Return and usernameBox:IsFocused() and usernameBox.Text ~= "" then
+		doUsernameSearch(usernameBox.Text); usernameBox:ReleaseFocus()
+	end
+end)
+
+---------------------------------------------------------------------
+-- BALANCE & SPEED — live update
+---------------------------------------------------------------------
+balanceInput:GetPropertyChangedSignal("Text"):Connect(function()
+	local raw = (balanceInput.Text or ""):gsub("[,%s]", "")
+	local v = tonumber(raw)
+	if v and v >= 0 then
+		CurrentBalance = math.floor(v)
+		cfBalLabel.Text = formatNumber(CurrentBalance)
+		sfBalLabel.Text = formatNumber(CurrentBalance)
+	end
+end)
+
+balanceInput.FocusLost:Connect(function()
+	local raw = (balanceInput.Text or ""):gsub("[,%s]", "")
+	local v = tonumber(raw)
+	if not v or v < 0 then
+		balanceInput.Text = formatNumber(CurrentBalance)
+	else
+		CurrentBalance = math.floor(v)
+		syncAllBalanceLabels()
+	end
+end)
+
+speedInput:GetPropertyChangedSignal("Text"):Connect(function()
+	local v = tonumber(speedInput.Text)
+	if v and v > 0 then LoadSpeed = v end
+end)
+speedInput.FocusLost:Connect(function()
+	local v = tonumber(speedInput.Text)
+	if not v or v <= 0 then speedInput.Text = tostring(LoadSpeed); return end
+	LoadSpeed = v; speedInput.Text = tostring(v)
+end)
+
+---------------------------------------------------------------------
+-- MINIMIZE / RESTORE
+---------------------------------------------------------------------
+local function minimizePanel()
+	isMinimized = true; setFrame.Visible = false; miniKBtn.Visible = true
+	miniKBtn.Size = UDim2.fromOffset(0,0)
+	TweenService:Create(miniKBtn, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size=UDim2.fromOffset(38,38)}):Play()
+end
+local function restorePanel()
+	isMinimized = false; miniKBtn.Visible = false; setFrame.Visible = true
+	setFrame.Size = UDim2.new(0, CTRL_W, 0, 50)
+	TweenService:Create(setFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size=UDim2.new(0,CTRL_W,0,CTRL_H)}):Play()
+end
+minBtn.MouseButton1Click:Connect(minimizePanel)
+miniKBtn.MouseButton1Click:Connect(restorePanel)
+
+---------------------------------------------------------------------
+-- VFX
+---------------------------------------------------------------------
+local function PlayCoolVFX()
+	local char = player.Character; if not char then return end
+	local hrp = char:FindFirstChild("HumanoidRootPart"); if not hrp then return end
+	local light = Instance.new("PointLight"); light.Color=Color3.fromRGB(80,255,120)
+	light.Range=25; light.Brightness=10; light.Parent=hrp
+	local hl = Instance.new("Highlight"); hl.FillColor=Color3.fromRGB(50,255,100)
+	hl.OutlineColor=Color3.fromRGB(200,255,200); hl.FillTransparency=0.3
+	hl.OutlineTransparency=0; hl.Parent=char
+	local sfx = Instance.new("Sound"); sfx.SoundId="rbxassetid://5563910008"
+	sfx.Volume=2; sfx.Parent=hrp; sfx:Play()
+	local base = Instance.new("Attachment"); base.Position=Vector3.new(0,-2,0); base.Parent=hrp
+	local aura = Instance.new("ParticleEmitter"); aura.Texture="rbxassetid://1047060178"
+	aura.Color=ColorSequence.new(Color3.fromRGB(50,255,100))
+	aura.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,5),NumberSequenceKeypoint.new(1,8)})
+	aura.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.1,0.2),NumberSequenceKeypoint.new(1,1)})
+	aura.LightEmission=0.8; aura.EmissionDirection=Enum.NormalId.Top
+	aura.Speed=NumberRange.new(5,10); aura.Lifetime=NumberRange.new(1,1.5)
+	aura.Rate=0; aura.Parent=base
+	local confetti = Instance.new("Attachment"); confetti.Position=Vector3.new(0,5,0); confetti.Parent=hrp
+	local colors = {Color3.fromRGB(255,70,70),Color3.fromRGB(70,255,70),Color3.fromRGB(70,150,255),
+		Color3.fromRGB(255,220,70),Color3.fromRGB(200,70,255),Color3.fromRGB(255,255,255)}
+	local emitters = {}
+	for _, c in ipairs(colors) do
+		local pe = Instance.new("ParticleEmitter"); pe.Texture="rbxassetid://1643328514"
+		pe.Color=ColorSequence.new(c)
+		pe.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,0.25),NumberSequenceKeypoint.new(1,0.25)})
+		pe.EmissionDirection=Enum.NormalId.Top; pe.Speed=NumberRange.new(45,70)
+		pe.SpreadAngle=Vector2.new(60,60); pe.Drag=2; pe.Acceleration=Vector3.new(0,-45,0)
+		pe.Rate=0; pe.Lifetime=NumberRange.new(2,3); pe.Rotation=NumberRange.new(0,360)
+		pe.RotSpeed=NumberRange.new(-500,500); pe.LightEmission=0.2; pe.Parent=confetti
+		table.insert(emitters, pe)
+	end
+	aura:Emit(40)
+	for _, e in ipairs(emitters) do e:Emit(60) end
+	task.spawn(function()
+		TweenService:Create(hl, TweenInfo.new(0.6,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{FillTransparency=1,OutlineTransparency=1}):Play()
+		TweenService:Create(light, TweenInfo.new(0.8,Enum.EasingStyle.Sine,Enum.EasingDirection.Out),{Brightness=0,Range=0}):Play()
+		task.wait(1.5); hl:Destroy(); light:Destroy(); base:Destroy(); confetti:Destroy(); sfx:Destroy()
+	end)
+end
+
+---------------------------------------------------------------------
+-- BUTTON CONNECTIONS
+---------------------------------------------------------------------
+closeBtn.MouseButton1Click:Connect(function() closeGiftPanel() end)
+cfClose.MouseButton1Click:Connect(function() closeConfirmPanel(true) end)
+sfClose.MouseButton1Click:Connect(function() closeSuccessPanel() end)
+sfOkBtn.MouseButton1Click:Connect(function() PlayCoolVFX(); closeSuccessPanel() end)
+
+sendRobuxBtn.MouseButton1Click:Connect(function()
+	if SelectedRecipient.username == "" or not SelectedRecipient.userId then return end
+	local raw = (customAmountInput.Text or ""):gsub(",",""):gsub("%s","")
+	local amt = tonumber(raw)
+	if not amt or amt <= 0 then return end
+	openConfirmPanel(amt)
+end)
+
+sendBtn.MouseButton1Click:Connect(function()
+	if isLoading then
+		closeConfirmPanel(true)
+	else
+		if confirmFrame.Visible then
+			CurrentBalance = math.max(0, math.floor(CurrentBalance - pendingAmount))
+			syncAllBalanceLabels()
+			showSuccessPanel()
+		end
+	end
+end)
+
+---------------------------------------------------------------------
+-- SIDEBAR BUTTON
+---------------------------------------------------------------------
+local function SetupSidebarButton()
+	task.spawn(function()
+		local btns = playerGui:WaitForChild("Buttons", 10)
+		if not btns then return end
+		local left = btns:WaitForChild("Left", 10)
+		if not left then return end
+		local comm = left:WaitForChild("OpenCommunityOutfits", 10)
+		if not comm then return end
+		local newBtn = comm:Clone()
+		newBtn.Name = "OpenGiftRobux"
+
+		for _, c in ipairs(newBtn:GetDescendants()) do
+			if c:IsA("TextLabel") or c:IsA("TextButton") or c:IsA("TextBox") then
+				pcall(function() c.Text = "" end)
+			end
+			if c:IsA("ImageLabel") and c.Name ~= "RobuxSendIcon" then
+				pcall(function() c.Image = "" end)
+			end
+		end
+		if newBtn:IsA("TextButton") then newBtn.Text = "" end
+
+		local innerContainer = Instance.new("Frame")
+		innerContainer.Size = UDim2.new(1, 0, 1, 0)
+		innerContainer.BackgroundTransparency = 1
+		innerContainer.ZIndex = (newBtn.ZIndex or 1) + 1
+		innerContainer.Parent = newBtn
+
+		local innerLayout = Instance.new("UIListLayout", innerContainer)
+		innerLayout.FillDirection = Enum.FillDirection.Horizontal
+		innerLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		innerLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+		innerLayout.Padding = UDim.new(0, 5)
+
+		local iconImg = Instance.new("ImageLabel")
+		iconImg.Name = "RobuxSendIcon"
+		iconImg.Size = UDim2.fromOffset(18, 18)
+		iconImg.BackgroundTransparency = 1
+		iconImg.Image = ASSETS.RobuxPlusIcon
+		iconImg.ZIndex = innerContainer.ZIndex + 1
+		iconImg.Parent = innerContainer
+
+		local sendLbl = Instance.new("TextLabel")
+		sendLbl.Text = "Send"
+		sendLbl.Font = Enum.Font.GothamBold
+		sendLbl.TextSize = 14
+		sendLbl.TextColor3 = Color3.new(1, 1, 1)
+		sendLbl.BackgroundTransparency = 1
+		sendLbl.Size = UDim2.fromOffset(0, 20)
+		sendLbl.AutomaticSize = Enum.AutomaticSize.X
+		sendLbl.ZIndex = innerContainer.ZIndex + 1
+		sendLbl.Parent = innerContainer
+
+		newBtn.Parent = left
+		newBtn.MouseButton1Click:Connect(function() showGiftPanel() end)
+	end)
+end
+
+SetupSidebarButton()			pcall(function() TweenService:Create(c, TweenInfo.new(ANIM), {ImageTransparency = 0}):Play() end)
 		end
 	end
 	t:Play()
